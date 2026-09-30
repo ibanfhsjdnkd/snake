@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#7c3aed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>🐍 Snake</title>
+<style>
+:root{
+  --c1:#e9d5ff; --c2:#d8b4fe; --c3:#c084fc; --c4:#a855f7; --c5:#7c3aed;
+  --c6:#9333ea; --c7:#4c1d95; --c8:#3b1578; --c9:#2e1065; --c10:#150a2e;
+  --glow:rgba(192,132,252,.8); --glow2:rgba(168,85,247,.6);
+  --bg-top:#2a1a4e; --bg-mid:#150a2e; --bg-bot:#0a0515;
+}
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:radial-gradient(circle at 50% 0%,var(--bg-top) 0%,var(--bg-mid) 50%,var(--bg-bot) 100%);color:var(--c1);min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:16px;overflow-x:hidden;transition:background .4s}
+
+.game{width:100%;max-width:560px;padding-bottom:100px}
+h1{text-align:center;font-size:24px;margin-bottom:10px;background:linear-gradient(90deg,var(--c3),var(--c4),var(--c5));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 14px var(--glow2));letter-spacing:2px}
+
+.top-stats{display:flex;gap:10px;margin-bottom:12px}
+.stat-box{flex:1;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(124,58,237,.08));border:1px solid var(--c4);border-radius:14px;padding:10px;text-align:center}
+.stat-box .lbl{font-size:10px;color:var(--c3);letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.stat-box .v{font-size:20px;font-weight:900;color:var(--c1);text-shadow:0 0 10px var(--glow);margin-top:2px;font-variant-numeric:tabular-nums}
+
+.canvas-wrap{position:relative;width:100%;aspect-ratio:1/1;border-radius:18px;overflow:hidden;border:2px solid var(--c4);background:var(--bg-bot);box-shadow:0 0 30px var(--glow2);touch-action:none}
+#gameCanvas{display:block;width:100%;height:100%}
+
+.overlay{position:absolute;inset:0;background:rgba(5,2,10,.85);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;z-index:10}
+.overlay.hidden{display:none}
+.overlay h2{font-size:24px;font-weight:900;color:var(--c2);letter-spacing:2px}
+.overlay p{font-size:14px;color:var(--c2);max-width:280px;line-height:1.5}
+.overlay .big{font-size:40px;font-weight:900;color:var(--c1);text-shadow:0 0 24px var(--glow);font-variant-numeric:tabular-nums}
+.btn{background:linear-gradient(135deg,var(--c5),var(--c6));border:2px solid var(--c3);color:var(--c1);padding:14px 36px;border-radius:14px;cursor:pointer;font-weight:800;font-size:15px;letter-spacing:2px;text-transform:uppercase;transition:all .2s}
+.btn:hover{transform:scale(1.05);box-shadow:0 0 24px var(--glow)}
+.btn.secondary{background:rgba(124,58,237,.25);border-color:var(--c4);padding:12px 24px;font-size:13px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+.hint{font-size:12px;color:var(--c3);text-align:center;margin-top:12px;letter-spacing:1px}
+
+/* МЕНЮ-КНОПКИ СНИЗУ */
+.bottom-bar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:950;display:flex;gap:12px;align-items:center}
+.icon-btn{width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,var(--c7),var(--c8),var(--c9));border:2px solid var(--c5);cursor:pointer;transition:all .2s;padding:0;display:flex;align-items:center;justify-content:center;color:var(--c1)}
+.icon-btn:hover{background:linear-gradient(135deg,var(--c8),var(--c7),var(--c8));transform:translateY(-2px)}
+.icon-btn svg{width:30px;height:30px;filter:drop-shadow(0 0 8px var(--glow))}
+
+/* СТРАНИЦЫ */
+.page{position:fixed;inset:0;background:radial-gradient(circle at 50% 0%,var(--bg-top) 0%,var(--bg-mid) 50%,var(--bg-bot) 100%);padding:20px;overflow-y:auto;transition:transform .35s cubic-bezier(.34,1.2,.64,1);z-index:1500}
+.page.slide-up{transform:translateY(100%)}
+.page.slide-up.show{transform:translateY(0)}
+.page.slide-right{transform:translateX(100%)}
+.page.slide-right.show{transform:translateX(0)}
+.page.slide-left{transform:translateX(-100%)}
+.page.slide-left.show{transform:translateX(0)}
+.page-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.back-btn{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--c7),var(--c8));border:2px solid var(--c4);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--c1);font-size:22px;font-weight:900;padding:0;flex-shrink:0}
+.page-title{font-size:20px;font-weight:900;color:var(--c1);letter-spacing:2px}
+
+/* СКИНЫ */
+.skins-list{display:flex;flex-direction:column;gap:12px;max-width:560px;margin:0 auto}
+.skin-card{background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(124,58,237,.1));border:2px solid var(--c4);border-radius:16px;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s}
+.skin-card:hover{transform:translateX(4px);background:linear-gradient(135deg,rgba(192,132,252,.35),rgba(147,51,234,.2))}
+.skin-card.active{border-color:var(--c1);box-shadow:0 0 24px var(--glow)}
+.skin-card.locked{opacity:.7}
+.skin-preview{width:52px;height:52px;border-radius:12px;flex-shrink:0;border:2px solid rgba(255,255,255,.4);box-shadow:0 0 12px rgba(0,0,0,.5)}
+.skin-info{flex:1}
+.skin-name{font-size:16px;font-weight:900;color:var(--c1);margin-bottom:3px}
+.skin-price{font-size:12px;font-weight:700;color:#fcd34d}
+.skin-price.owned{color:#86efac}
+.skin-btn{padding:8px 16px;border-radius:10px;background:linear-gradient(135deg,var(--c5),var(--c6));border:1px solid var(--c3);color:#fff;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:1px;flex-shrink:0}
+.skin-btn.owned{background:rgba(34,197,94,.25);border-color:#22c55e;color:#86efac}
+.skin-btn.active-skin{background:rgba(168,85,247,.4);border-color:var(--c1);color:#fff}
+
+/* РЕКОРДЫ */
+.records-list{display:flex;flex-direction:column;gap:10px;max-width:560px;margin:0 auto}
+.record-card{background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(124,58,237,.08));border:1px solid var(--c4);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px}
+.record-num{font-size:22px;font-weight:900;color:var(--c3);width:36px;text-align:center;text-shadow:0 0 10px var(--glow)}
+.record-num.gold{color:#fcd34d}
+.record-info{flex:1}
+.record-score{font-size:18px;font-weight:900;color:var(--c1)}
+.record-date{font-size:11px;color:var(--c3);margin-top:2px}
+.empty-msg{text-align:center;color:var(--c3);padding:40px 20px;font-style:italic;font-size:13px}
+
+/* НАСТРОЙКИ */
+.settings-section{max-width:560px;margin:0 auto 22px}
+.settings-section h3{font-size:12px;color:var(--c4);letter-spacing:3px;text-transform:uppercase;font-weight:800;margin-bottom:12px;padding-left:4px}
+.lang-list{display:flex;flex-direction:column;gap:10px}
+.lang-btn{background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(124,58,237,.08));border:2px solid var(--c4);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;color:var(--c1);font-weight:700;font-size:15px;text-align:left}
+.lang-btn.active{border-color:var(--c1);background:linear-gradient(135deg,var(--c5),var(--c6));color:#fff}
+.lang-btn .flag{font-size:24px}
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
+.theme-btn{border-radius:14px;padding:12px;cursor:pointer;transition:all .2s;border:2px solid;display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+.theme-btn .swatch{width:32px;height:32px;border-radius:50%;box-shadow:0 0 12px currentColor}
+.theme-btn.active{border-color:#fff !important;box-shadow:0 0 20px rgba(255,255,255,.5)}
+
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(120px);background:linear-gradient(135deg,var(--c4),var(--c5));color:var(--c1);padding:12px 24px;border-radius:12px;font-weight:700;font-size:14px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);z-index:3000;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* НЕВИДИМАЯ КНОПКА */
+#secretBtn{position:fixed;bottom:0;right:0;width:44px;height:44px;opacity:0;cursor:pointer;z-index:9999;-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+
+<div class="game">
+  <h1>🐍 SNAKE</h1>
+
+  <div class="top-stats">
+    <div class="stat-box">
+      <div class="lbl" id="lblScore">Счёт</div>
+      <div class="v" id="score">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="lbl" id="lblRecord">Рекорд</div>
+      <div class="v" id="record">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="lbl" id="lblCoins">Монеты</div>
+      <div class="v" id="coins">0</div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="gameCanvas"></canvas>
+    <div class="overlay" id="startOverlay">
+      <h2 id="ovTitle">🐍 SNAKE</h2>
+      <p id="ovText">Свайпай по экрану чтобы управлять змейкой.<br>Собирай яблоки — 1 яблоко = 1 монета.</p>
+      <button class="btn" id="startBtn" data-i18n="start">ИГРАТЬ</button>
+    </div>
+    <div class="overlay hidden" id="overOverlay">
+      <h2 id="ovOverTitle">💀 GAME OVER</h2>
+      <div class="big" id="ovFinalScore">0</div>
+      <p id="ovOverText"></p>
+      <button class="btn" id="restartBtn" data-i18n="restart">ЗАНОВО</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">👆 Свайп в любую сторону</div>
+</div>
+
+<!-- ПРОФИЛЬ/РЕКОРДЫ -->
+<div class="page slide-right" id="recordsPage">
+  <div class="page-header">
+    <button class="back-btn" id="backFromRecords">←</button>
+    <div class="page-title" id="recordsTitle">🏆 РЕКОРДЫ</div>
+  </div>
+  <div class="records-list" id="recordsList"></div>
+</div>
+
+<!-- СКИНЫ -->
+<div class="page slide-up" id="skinsPage">
+  <div class="page-header">
+    <button class="back-btn" id="backFromSkins">←</button>
+    <div class="page-title" id="skinsTitle">🎨 СКИНЫ</div>
+  </div>
+  <div class="skins-list" id="skinsList"></div>
+</div>
+
+<!-- НАСТРОЙКИ -->
+<div class="page slide-left" id="settingsPage">
+  <div class="page-header">
+    <button class="back-btn" id="backFromSettings">←</button>
+    <div class="page-title" id="settingsTitle">⚙️ НАСТРОЙКИ</div>
+  </div>
+  <div class="settings-section">
+    <h3 id="langTitle">🌐 Язык</h3>
+    <div class="lang-list">
+      <button class="lang-btn" data-lang="ru"><span class="flag">🇷🇺</span><span>Русский</span></button>
+      <button class="lang-btn" data-lang="uk"><span class="flag">🇺🇦</span><span>Українська</span></button>
+      <button class="lang-btn" data-lang="en"><span class="flag">🇬🇧</span><span>English</span></button>
+    </div>
+  </div>
+  <div class="settings-section">
+    <h3 id="themeTitle">🎨 Тема</h3>
+    <div class="theme-grid">
+      <button class="theme-btn" data-theme="purple" style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-color:#c084fc"><div class="swatch" style="background:#c084fc"></div><span data-i18n="purple">Фиолетовая</span></button>
+      <button class="theme-btn" data-theme="blue" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-color:#60a5fa"><div class="swatch" style="background:#60a5fa"></div><span data-i18n="blue">Синяя</span></button>
+      <button class="theme-btn" data-theme="green" style="background:linear-gradient(135deg,#15803d,#22c55e);border-color:#4ade80"><div class="swatch" style="background:#4ade80"></div><span data-i18n="green">Зелёная</span></button>
+      <button class="theme-btn" data-theme="red" style="background:linear-gradient(135deg,#b91c1c,#ef4444);border-color:#f87171"><div class="swatch" style="background:#f87171"></div><span data-i18n="red">Красная</span></button>
+      <button class="theme-btn" data-theme="gold" style="background:linear-gradient(135deg,#b45309,#f59e0b);border-color:#fbbf24"><div class="swatch" style="background:#fbbf24"></div><span data-i18n="gold">Золотая</span></button>
+      <button class="theme-btn" data-theme="pink" style="background:linear-gradient(135deg,#be185d,#ec4899);border-color:#f472b6"><div class="swatch" style="background:#f472b6"></div><span data-i18n="pink">Розовая</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <button class="icon-btn" id="recordsBtn" aria-label="Records">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 22 V16 M16 22 V10 M24 22 V13"/>
+      <path d="M4 28 H28"/>
+    </svg>
+  </button>
+  <button class="icon-btn" id="skinsBtn" aria-label="Skins">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="16" cy="16" r="10"/>
+      <circle cx="12" cy="13" r="2" fill="currentColor"/>
+      <circle cx="20" cy="13" r="2" fill="currentColor"/>
+      <circle cx="12" cy="20" r="2" fill="currentColor"/>
+    </svg>
+  </button>
+  <button class="icon-btn" id="settingsBtn" aria-label="Settings">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="16" cy="16" r="4"/>
+      <path d="M16 2 L16 5 M16 27 L16 30 M2 16 L5 16 M27 16 L30 16 M6.1 6.1 L8.2 8.2 M23.8 23.8 L25.9 25.9 M6.1 25.9 L8.2 23.8 M23.8 8.2 L25.9 6.1"/>
+    </svg>
+  </button>
+</div>
+
+<div id="secretBtn"></div>
+
+<script>
+/* ============ ПЕРЕВОДЫ ============ */
+const I18N={
+  ru:{start:"ИГРАТЬ",restart:"ЗАНОВО",score:"Счёт",record:"Рекорд",coins:"Монеты",recordsTitle:"🏆 РЕКОРДЫ",skinsTitle:"🎨 СКИНЫ",settingsTitle:"⚙️ НАСТРОЙКИ",langTitle:"🌐 Язык",themeTitle:"🎨 Тема",purple:"Фиолетовая",blue:"Синяя",green:"Зелёная",red:"Красная",gold:"Золотая",pink:"Розовая",ovTitle:"🐍 SNAKE",ovText:"Свайпай по экрану чтобы управлять змейкой.<br>Собирай яблоки — 1 яблоко = 1 монета.",ovOverTitle:"💀 GAME OVER",hint:"👆 Свайп в любую сторону",noRecords:"Пока нет рекордов. Играй и ставь рекорды!",buy:"Купить",buyFor:"за",owned:"Куплено",use:"Использовать",using:"Активен",bought:"Куплено!",notEnoughCoins:"Недостаточно монет",allSkinsUnlocked:"Все скины разблокированы!",notEnough:"Недостаточно монет!"},
+  uk:{start:"ГРАТИ",restart:"ЗАНОВО",score:"Рахунок",record:"Рекорд",coins:"Монети",recordsTitle:"🏆 РЕКОРДИ",skinsTitle:"🎨 СКІНИ",settingsTitle:"⚙️ НАЛАШТУВАННЯ",langTitle:"🌐 Мова",themeTitle:"🎨 Тема",purple:"Фіолетова",blue:"Синя",green:"Зелена",red:"Червона",gold:"Золота",pink:"Рожева",ovTitle:"🐍 SNAKE",ovText:"Свайпай по екрану щоб керувати змійкою.<br>Збирай яблука — 1 яблуко = 1 монета.",ovOverTitle:"💀 ГРА ЗАКІНЧЕНА",hint:"👆 Свайп у будь-який бік",noRecords:"Поки немає рекордів. Грай!",buy:"Купити",buyFor:"за",owned:"Куплено",use:"Використати",using:"Активний",bought:"Куплено!",notEnoughCoins:"Недостатньо монет",allSkinsUnlocked:"Всі скіни розблоковані!",notEnough:"Недостатньо монет!"},
+  en:{start:"PLAY",restart:"RETRY",score:"Score",record:"Best",coins:"Coins",recordsTitle:"🏆 RECORDS",skinsTitle:"🎨 SKINS",settingsTitle:"⚙️ SETTINGS",langTitle:"🌐 Language",themeTitle:"🎨 Theme",purple:"Purple",blue:"Blue",green:"Green",red:"Red",gold:"Gold",pink:"Pink",ovTitle:"🐍 SNAKE",ovText:"Swipe on the screen to control the snake.<br>Collect apples — 1 apple = 1 coin.",ovOverTitle:"💀 GAME OVER",hint:"👆 Swipe anywhere",noRecords:"No records yet. Play and set records!",buy:"Buy",buyFor:"for",owned:"Owned",use:"Use",using:"Active",bought:"Purchased!",notEnoughCoins:"Not enough coins",allSkinsUnlocked:"All skins unlocked!",notEnough:"Not enough coins!"}
+};
+function t(k){return (I18N[state.lang]&&I18N[state.lang][k])||I18N.ru[k]||k}
+
+/* ============ ТЕМЫ ============ */
+const THEMES={
+  purple:{c1:'#e9d5ff',c2:'#d8b4fe',c3:'#c084fc',c4:'#a855f7',c5:'#7c3aed',c6:'#9333ea',c7:'#4c1d95',c8:'#3b1578',c9:'#2e1065',c10:'#150a2e',glow:'rgba(192,132,252,.8)',glow2:'rgba(168,85,247,.6)',bgTop:'#2a1a4e',bgMid:'#150a2e',bgBot:'#0a0515'},
+  blue:{c1:'#dbeafe',c2:'#bfdbfe',c3:'#60a5fa',c4:'#3b82f6',c5:'#2563eb',c6:'#1d4ed8',c7:'#1e3a8a',c8:'#1e40af',c9:'#172554',c10:'#0a1a3a',glow:'rgba(96,165,250,.8)',glow2:'rgba(59,130,246,.6)',bgTop:'#1a2a4e',bgMid:'#0f1a2e',bgBot:'#050a15'},
+  green:{c1:'#d1fae5',c2:'#a7f3d0',c3:'#4ade80',c4:'#22c55e',c5:'#16a34a',c6:'#15803d',c7:'#14532d',c8:'#166534',c9:'#052e16',c10:'#0a1f10',glow:'rgba(74,222,128,.8)',glow2:'rgba(34,197,94,.6)',bgTop:'#1a4e2a',bgMid:'#0f2e1a',bgBot:'#05150a'},
+  red:{c1:'#fee2e2',c2:'#fecaca',c3:'#f87171',c4:'#ef4444',c5:'#dc2626',c6:'#b91c1c',c7:'#7f1d1d',c8:'#991b1b',c9:'#450a0a',c10:'#1a0505',glow:'rgba(248,113,113,.8)',glow2:'rgba(239,68,68,.6)',bgTop:'#4e1a1a',bgMid:'#2e0f0f',bgBot:'#150505'},
+  gold:{c1:'#fef3c7',c2:'#fde68a',c3:'#fbbf24',c4:'#f59e0b',c5:'#d97706',c6:'#b45309',c7:'#78350f',c8:'#92400e',c9:'#451a03',c10:'#1a0f00',glow:'rgba(251,191,36,.8)',glow2:'rgba(245,158,11,.6)',bgTop:'#4e3a1a',bgMid:'#2e220f',bgBot:'#150f05'},
+  pink:{c1:'#fce7f3',c2:'#fbcfe8',c3:'#f472b6',c4:'#ec4899',c5:'#db2777',c6:'#be185d',c7:'#831843',c8:'#9d174d',c9:'#500724',c10:'#1a0510',glow:'rgba(244,114,182,.8)',glow2:'rgba(236,72,153,.6)',bgTop:'#4e1a3a',bgMid:'#2e0f24',bgBot:'#15050f'}
+};
+function applyTheme(name){
+  const th=THEMES[name]||THEMES.purple;
+  const r=document.documentElement;
+  Object.keys(th).forEach(k=>r.style.setProperty('--'+k,th[k]));
+  state.theme=name;save();
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.theme===name));
+}
+
+/* ============ СКИНЫ ============ */
+const SKINS=[
+  {id:'green',name:'Зелёная',price:0,color:'#22c55e',head:'#16a34a',apple:'#ef4444'},
+  {id:'blue',name:'Синяя',price:20,color:'#3b82f6',head:'#1d4ed8',apple:'#ef4444'},
+  {id:'red',name:'Красная',price:40,color:'#ef4444',head:'#b91c1c',apple:'#fbbf24'},
+  {id:'gold',name:'Золотая',price:75,color:'#fbbf24',head:'#d97706',apple:'#ef4444'},
+  {id:'cyan',name:'Бирюзовая',price:120,color:'#06b6d4',head:'#0e7490',apple:'#ec4899'},
+  {id:'pink',name:'Розовая',price:180,color:'#ec4899',head:'#be185d',apple:'#fbbf24'},
+  {id:'purple',name:'Фиолетовая',price:250,color:'#a855f7',head:'#7c3aed',apple:'#fbbf24'}
+];
+
+/* ============ СОСТОЯНИЕ ============ */
+const SAVE_KEY='snake_v1';
+let state={
+  coins:0,
+  best:0,
+  ownedSkins:['green'],
+  activeSkin:'green',
+  records:[],
+  lang:'ru',
+  theme:'purple'
+};
+function load(){try{const r=localStorage.getItem(SAVE_KEY);if(r){const d=JSON.parse(r);Object.assign(state,d)}}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(state))}catch(e){}}
+
+/* ============ DOM ============ */
+const $=id=>document.getElementById(id);
+const $score=$('score'),$record=$('record'),$coins=$('coins');
+const $startOverlay=$('startOverlay'),$overOverlay=$('overOverlay');
+const $ovFinalScore=$('ovFinalScore'),$ovOverText=$('ovOverText');
+const $canvas=$('gameCanvas'),$wrap=$('canvasWrap');
+const $skinsList=$('skinsList'),$recordsList=$('recordsList');
+
+function toast(msg){
+  const t2=document.createElement('div');t2.className='toast';t2.textContent=msg;
+  document.body.appendChild(t2);requestAnimationFrame(()=>t2.classList.add('show'));
+  setTimeout(()=>{t2.classList.remove('show');setTimeout(()=>t2.remove(),400)},1800);
+}
+function updateTopStats(){
+  $score.textContent=game.score;
+  $record.textContent=state.best;
+  $coins.textContent=state.coins;
+}
+function applyLang(lang){
+  state.lang=lang;save();
+  const $lblScore=$('lblScore'),$lblRecord=$('lblRecord'),$lblCoins=$('lblCoins');
+  $lblScore.textContent=t('score');$lblRecord.textContent=t('record');$lblCoins.textContent=t('coins');
+  $('startBtn').textContent=t('start');$('restartBtn').textContent=t('restart');
+  $('ovTitle').textContent=t('ovTitle');$('ovText').innerHTML=t('ovText');
+  $('ovOverTitle').textContent=t('ovOverTitle');
+  $('hint').textContent=t('hint');
+  $('recordsTitle').textContent=t('recordsTitle');
+  $('skinsTitle').textContent=t('skinsTitle');
+  $('settingsTitle').textContent=t('settingsTitle');
+  $('langTitle').textContent=t('langTitle');
+  $('themeTitle').textContent=t('themeTitle');
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  document.querySelectorAll('.theme-btn').forEach(b=>{
+    const k=b.dataset.theme;
+    const span=b.querySelector('span[data-i18n]');
+    if(span)span.textContent=t(k);
+  });
+  renderSkins();renderRecords();
+}
+
+/* ============ ИГРА ============ */
+let game={score:0,grid:15,cell:0,snake:[],dir:{x:1,y:0},nextDir:{x:1,y:0},apple:{x:5,y:5},running:false,interval:null,stepMs:180};
+
+function drawGame(){
+  const ctx=$canvas.getContext('2d');
+  const W=$canvas.width,H=$canvas.height;
+  // фон
+  ctx.fillStyle='#0a0515';
+  ctx.fillRect(0,0,W,H);
+  // клетки (шахматный узор)
+  const cell=W/game.grid;
+  for(let y=0;y<game.grid;y++){
+    for(let x=0;x<game.grid;x++){
+      if((x+y)%2===0){
+        ctx.fillStyle='rgba(124,58,237,0.08)';
+      }else{
+        ctx.fillStyle='rgba(124,58,237,0.02)';
+      }
+      ctx.fillRect(x*cell,y*cell,cell,cell);
+    }
+  }
+  // яблоко
+  const skin=SKINS.find(s=>s.id===state.activeSkin)||SKINS[0];
+  ctx.fillStyle=skin.apple;
+  ctx.shadowColor=skin.apple;ctx.shadowBlur=20;
+  ctx.beginPath();
+  ctx.arc(game.apple.x*cell+cell/2,game.apple.y*cell+cell/2,cell*0.4,0,Math.PI*2);
+  ctx.fill();
+  // хвостик яблока
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#22c55e';
+  ctx.fillRect(game.apple.x*cell+cell/2-1,game.apple.y*cell+cell*0.15,2,cell*0.15);
+  // змейка
+  game.snake.forEach((seg,i)=>{
+    const isHead=i===0;
+    ctx.fillStyle=isHead?skin.head:skin.color;
+    ctx.shadowColor=skin.color;ctx.shadowBlur=isHead?16:6;
+    const r=cell*0.12;
+    roundRect(ctx,seg.x*cell+1,seg.y*cell+1,cell-2,cell-2,r);
+    ctx.fill();
+  });
+  ctx.shadowBlur=0;
+  // глаза на голове
+  if(game.snake.length){
+    const head=game.snake[0];
+    const cx=head.x*cell+cell/2,cy=head.y*cell+cell/2;
+    ctx.fillStyle='#fff';
+    const eyeOff=cell*0.18,eyeR=cell*0.09;
+    let ex1,ey1,ex2,ey2;
+    if(game.dir.x===1){ex1=cx+eyeOff;ey1=cy-eyeOff;ex2=cx+eyeOff;ey2=cy+eyeOff}
+    else if(game.dir.x===-1){ex1=cx-eyeOff;ey1=cy-eyeOff;ex2=cx-eyeOff;ey2=cy+eyeOff}
+    else if(game.dir.y===1){ex1=cx-eyeOff;ey1=cy+eyeOff;ex2=cx+eyeOff;ey2=cy+eyeOff}
+    else{ex1=cx-eyeOff;ey1=cy-eyeOff;ex2=cx+eyeOff;ey2=cy-eyeOff}
+    ctx.beginPath();ctx.arc(ex1,ey1,eyeR,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(ex2,ey2,eyeR,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';
+    ctx.beginPath();ctx.arc(ex1,ey1,eyeR*0.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(ex2,ey2,eyeR*0.5,0,Math.PI*2);ctx.fill();
+  }
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+function resizeCanvas(){
+  const size=$wrap.clientWidth;
+  $canvas.width=size;$canvas.height=size;
+  game.cell=size/game.grid;
+  drawGame();
+}
+function resetGame(){
+  game.score=0;
+  game.grid=15;
+  game.snake=[{x:7,y:7},{x:6,y:7},{x:5,y:7}];
+  game.dir={x:1,y:0};
+  game.nextDir={x:1,y:0};
+  game.apple={x:10,y:7};
+  game.stepMs=180;
+  updateTopStats();
+}
+function spawnApple(){
+  const cells=[];
+  for(let y=0;y<game.grid;y++){
+    for(let x=0;x<game.grid;x++){
+      if(!game.snake.some(s=>s.x===x&&s.y===y))cells.push({x,y});
+    }
+  }
+  if(cells.length){
+    game.apple=cells[Math.floor(Math.random()*cells.length)];
+  }
+}
+function step(){
+  if(!game.running)return;
+  game.dir={...game.nextDir};
+  const head=game.snake[0];
+  const nx=head.x+game.dir.x,ny=head.y+game.dir.y;
+  // столкновение со стеной
+  if(nx<0||nx>=game.grid||ny<0||ny>=game.grid){
+    return gameOver();
+  }
+  // столкновение с собой
+  if(game.snake.some(s=>s.x===nx&&s.y===ny)){
+    return gameOver();
+  }
+  game.snake.unshift({x:nx,y:ny});
+  // съели яблоко
+  if(nx===game.apple.x&&ny===game.apple.y){
+    game.score++;
+    state.coins+=1;
+    updateTopStats();
+    save();
+    spawnApple();
+    // ускорение
+    if(game.stepMs>70)game.stepMs-=3;
+    restartInterval();
+  }else{
+    game.snake.pop();
+  }
+  drawGame();
+}
+function restartInterval(){
+  if(game.interval)clearInterval(game.interval);
+  game.interval=setInterval(step,game.stepMs);
+}
+function startGame(){
+  resetGame();
+  resizeCanvas();
+  $startOverlay.classList.add('hidden');
+  $overOverlay.classList.add('hidden');
+  game.running=true;
+  restartInterval();
+}
+function gameOver(){
+  game.running=false;
+  if(game.interval){clearInterval(game.interval);game.interval=null}
+  // записываем рекорд
+  const newRecord=game.score;
+  if(newRecord>state.best)state.best=newRecord;
+  if(newRecord>0){
+    state.records.push({score:newRecord,date:new Date().toLocaleDateString()});
+    state.records.sort((a,b)=>b.score-a.score);
+    state.records=state.records.slice(0,10);
+  }
+  save();
+  updateTopStats();
+  $ovFinalScore.textContent=newRecord;
+  $ovOverText.innerHTML=(newRecord>0?'💰 +'+newRecord+' '+(state.lang==='en'?'coins':state.lang==='uk'?'монет':'монет'):'');
+  $overOverlay.classList.remove('hidden');
+}
+
+/* ============ СВАЙПЫ ============ */
+let touchStartX=0,touchStartY=0,touchActive=false;
+function onTouchStart(e){
+  const t2=e.touches?e.touches[0]:e;
+  touchStartX=t2.clientX;touchStartY=t2.clientY;touchActive=true;
+}
+function onTouchEnd(e){
+  if(!touchActive)return;
+  touchActive=false;
+  const t2=e.changedTouches?e.changedTouches[0]:e;
+  const dx=t2.clientX-touchStartX;
+  const dy=t2.clientY-touchStartY;
+  if(Math.abs(dx)<20&&Math.abs(dy)<20)return;
+  if(!game.running)return;
+  if(Math.abs(dx)>Math.abs(dy)){
+    // горизонтальный
+    if(dx>0&&game.dir.x!==-1)game.nextDir={x:1,y:0};
+    else if(dx<0&&game.dir.x!==1)game.nextDir={x:-1,y:0};
+  }else{
+    // вертикальный
+    if(dy>0&&game.dir.y!==-1)game.nextDir={x:0,y:1};
+    else if(dy<0&&game.dir.y!==1)game.nextDir={x:0,y:-1};
+  }
+}
+$wrap.addEventListener('touchstart',onTouchStart,{passive:true});
+$wrap.addEventListener('touchend',onTouchEnd,{passive:true});
+$wrap.addEventListener('mousedown',onTouchStart);
+$wrap.addEventListener('mouseup',onTouchEnd);
+
+// клавиатура
+document.addEventListener('keydown',(e)=>{
+  if(!game.running)return;
+  if(e.key==='ArrowUp'&&game.dir.y!==1)game.nextDir={x:0,y:-1};
+  else if(e.key==='ArrowDown'&&game.dir.y!==-1)game.nextDir={x:0,y:1};
+  else if(e.key==='ArrowLeft'&&game.dir.x!==1)game.nextDir={x:-1,y:0};
+  else if(e.key==='ArrowRight'&&game.dir.x!==-1)game.nextDir={x:1,y:0};
+});
+
+/* ============ СКИНЫ ============ */
+function renderSkins(){
+  $skinsList.innerHTML='';
+  SKINS.forEach(s=>{
+    const owned=state.ownedSkins.includes(s.id);
+    const active=state.activeSkin===s.id;
+    const card=document.createElement('div');
+    card.className='skin-card'+(active?' active':'')+(owned?'':' locked');
+    card.innerHTML=`
+      <div class="skin-preview" style="background:linear-gradient(135deg,${s.color},${s.head})"></div>
+      <div class="skin-info">
+        <div class="skin-name">${s.name}</div>
+        <div class="skin-price ${owned?'owned':''}">${owned?t('owned'):'💰 '+s.price+' '+t('coins').toLowerCase()}</div>
+      </div>
+      <button class="skin-btn ${active?'active-skin':owned?'owned':''}">${active?t('using'):owned?t('use'):t('buy')}</button>
+    `;
+    card.addEventListener('click',()=>{
+      if(active)return;
+      if(owned){
+        state.activeSkin=s.id;save();renderSkins();drawGame();toast('✅ '+s.name);
+      }else{
+        if(state.coins>=s.price){
+          state.coins-=s.price;
+          state.ownedSkins.push(s.id);
+          state.activeSkin=s.id;
+          save();renderSkins();updateTopStats();drawGame();
+          toast('🎨 '+t('bought')+' '+s.name);
+        }else{
+          toast('❌ '+t('notEnoughCoins'));
+        }
+      }
+    });
+    $skinsList.appendChild(card);
+  });
+}
+
+/* ============ РЕКОРДЫ ============ */
+function renderRecords(){
+  $recordsList.innerHTML='';
+  if(!state.records.length){
+    $recordsList.innerHTML='<div class="empty-msg">'+t('noRecords')+'</div>';
+    return;
+  }
+  state.records.forEach((r,i)=>{
+    const card=document.createElement('div');
+    card.className='record-card';
+    card.innerHTML=`
+      <div class="record-num${i===0?' gold':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)}</div>
+      <div class="record-info">
+        <div class="record-score">${r.score} 🍎</div>
+        <div class="record-date">${r.date}</div>
+      </div>
+    `;
+    $recordsList.appendChild(card);
+  });
+}
+
+/* ============ СТРАНИЦЫ ============ */
+$('recordsBtn').addEventListener('click',()=>{renderRecords();$('recordsPage').classList.add('show')});
+$('backFromRecords').addEventListener('click',()=>$('recordsPage').classList.remove('show'));
+$('skinsBtn').addEventListener('click',()=>{renderSkins();$('skinsPage').classList.add('show')});
+$('backFromSkins').addEventListener('click',()=>$('skinsPage').classList.remove('show'));
+$('settingsBtn').addEventListener('click',()=>$('settingsPage').classList.add('show'));
+$('backFromSettings').addEventListener('click',()=>$('settingsPage').classList.remove('show'));
+
+document.querySelectorAll('.lang-btn').forEach(b=>{
+  b.addEventListener('click',()=>applyLang(b.dataset.lang));
+});
+document.querySelectorAll('.theme-btn').forEach(b=>{
+  b.addEventListener('click',()=>applyTheme(b.dataset.theme));
+});
+
+/* ============ СТАРТ / РЕСТАРТ ============ */
+$('startBtn').addEventListener('click',startGame);
+$('restartBtn').addEventListener('click',startGame);
+
+/* ============ НЕВИДИМАЯ КНОПКА — ВСЕ СКИНЫ ============ */
+$('secretBtn').addEventListener('click',()=>{
+  state.ownedSkins=SKINS.map(s=>s.id);
+  state.activeSkin='purple';
+  state.coins+=1000;
+  save();renderSkins();updateTopStats();drawGame();
+  toast('🎁 '+t('allSkinsUnlocked')+' +1000 💰');
+});
+
+/* ============ СТАРТ ============ */
+load();
+applyTheme(state.theme);
+applyLang(state.lang);
+resizeCanvas();
+updateTopStats();
+drawGame();
+window.addEventListener('resize',()=>{resizeCanvas();drawGame()});
+</script>
+</body>
+</html>
